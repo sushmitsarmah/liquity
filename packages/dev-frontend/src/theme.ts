@@ -23,8 +23,10 @@ const colors = {
   invalid: "pink",
 
   text: "#293147",
-  background: "white",
-  muted: "#eaebed"
+  background: "#f8f8f9",
+  muted: "#eaebed",
+
+  header: "#ff4339"
 };
 
 const buttonBase: ThemeUIStyleObject = {
@@ -208,10 +210,13 @@ const theme: Theme = {
     primary: {
       ...card,
 
-      padding: 0,
+      // padding: 0,
 
       borderColor: "muted",
       bg: "background",
+      borderRadius: "4px",
+      padding: "24px",
+      // border: "none",
 
       "> h2": {
         display: "flex",
@@ -224,7 +229,8 @@ const theme: Theme = {
         py: 2,
         pr: 2,
 
-        bg: "muted",
+        // bg: "muted",
+        color: "header",
 
         fontSize: cardHeadingFontSize
       },

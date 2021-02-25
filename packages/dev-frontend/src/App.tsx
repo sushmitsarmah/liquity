@@ -88,7 +88,7 @@ const LiquityFrontend: React.FC<LiquityFrontendProps> = ({ loader }) => {
           <PageSwitcher />
         </Container>
 
-        <Footer>* Please note that the final user-facing application will look different.</Footer>
+        <Footer>* Please note that the final user-facing application will look different.</Footer> 
       </Flex>
 
       <TransactionMonitor />
