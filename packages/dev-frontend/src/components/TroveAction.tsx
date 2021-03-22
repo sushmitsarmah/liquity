@@ -2,9 +2,9 @@ import React, { useEffect } from "react";
 import { Button, Flex, Spinner } from "theme-ui";
 
 import {
+  LUSD_MINIMUM_DEBT,
   MINIMUM_COLLATERAL_RATIO,
   CRITICAL_COLLATERAL_RATIO,
-  LUSD_LIQUIDATION_RESERVE,
   Decimal,
   Percent,
   LiquityStoreState,
@@ -17,11 +17,12 @@ import { useLiquitySelector } from "@liquity/lib-react";
 import { useLiquity } from "../hooks/LiquityContext";
 import { COIN } from "../strings";
 
-import { Transaction, useMyTransactionState } from "./Transaction";
+import { Transaction, TransactionFunction, useMyTransactionState } from "./Transaction";
 
 type TroveActionProps = {
   original: Trove;
   edited: Trove;
+  maxBorrowingRate: Decimal;
   afterFee: Trove;
   change?: TroveChange<Decimal>;
   changePending: boolean;
@@ -62,9 +63,12 @@ const select = ({ price, total, lusdBalance, numberOfTroves }: LiquityStoreState
   numberOfTroves
 });
 
+type Action = [name: string, send: TransactionFunction, requirements?: [boolean, string][]];
+
 export const TroveAction: React.FC<TroveActionProps> = ({
   original,
   edited,
+  maxBorrowingRate,
   afterFee,
   change,
   changePending,
@@ -96,10 +100,10 @@ export const TroveAction: React.FC<TroveActionProps> = ({
       <Flex variant="layout.actions">
         <Transaction
           id={myTransactionId}
-          requires={[
-            [false, `Need at least ${LUSD_LIQUIDATION_RESERVE} ${COIN} for gas compensation`]
-          ]}
-          send={(() => {}) as any}
+          requires={[[false, `Debt should be at least ${LUSD_MINIMUM_DEBT} ${COIN}`]]}
+          send={() => {
+            throw new Error("shouldn't be called");
+          }}
         >
           <Button sx={{ mx: 2 }} />
         </Transaction>
@@ -107,11 +111,11 @@ export const TroveAction: React.FC<TroveActionProps> = ({
     );
   }
 
-  const [actionName, send, extraRequirements] =
+  const [actionName, send, extraRequirements]: Action =
     change.type === "creation"
-      ? ([
+      ? [
           describeAdjustment(change.params),
-          liquity.openTrove.bind(liquity, change.params),
+          liquity.openTrove.bind(liquity, change.params, maxBorrowingRate),
           [
             [
               afterFee.isOpenableInRecoveryMode(price) ||
@@ -119,30 +123,27 @@ export const TroveAction: React.FC<TroveActionProps> = ({
               `Can't open Trove with less than ${ccrPercent} collateral ratio during recovery mode`
             ]
           ]
-        ] as const)
+        ]
       : change.type === "closure"
-      ? ([
+      ? [
           "Close Trove",
           liquity.closeTrove.bind(liquity),
           [
             [!total.collateralRatioIsBelowCritical(price), "Can't close Trove during recovery mode"],
             [numberOfTroves > 1, "Can't close when no other Trove exists"]
           ]
-        ] as const)
-      : ([
+        ]
+      : [
           describeAdjustment(change.params),
-          liquity.adjustTrove.bind(liquity, change.params),
+          liquity.adjustTrove.bind(liquity, change.params, maxBorrowingRate),
           [
             [
-              !change.params.withdrawCollateral || !total.collateralRatioIsBelowCritical(price),
-              "Can't withdraw ETH during recovery mode"
-            ],
-            [
-              !change.params.borrowLUSD || !total.collateralRatioIsBelowCritical(price),
-              `Can't borrow ${COIN} during recovery mode`
+              afterFee.collateralRatio(price).gte(original.collateralRatio(price)) ||
+                !total.collateralRatioIsBelowCritical(price),
+              "Can't decrease collateral ratio during recovery mode"
             ]
           ]
-        ] as const);
+        ];
 
   return myTransactionState.type === "waitingForApproval" ? (
     <Flex variant="layout.actions">
@@ -157,8 +158,8 @@ export const TroveAction: React.FC<TroveActionProps> = ({
         id={myTransactionId}
         requires={[
           [
-            edited.isEmpty || edited.debt.gte(LUSD_LIQUIDATION_RESERVE),
-            `Need at least ${LUSD_LIQUIDATION_RESERVE} ${COIN} for gas compensation`
+            edited.isEmpty || afterFee.debt.gte(LUSD_MINIMUM_DEBT),
+            `Debt should be at least ${LUSD_MINIMUM_DEBT} ${COIN}`
           ],
           [
             !(
@@ -172,7 +173,9 @@ export const TroveAction: React.FC<TroveActionProps> = ({
             !(
               change.type === "creation" ||
               (change.type === "adjustment" && change.params.borrowLUSD)
-            ) || !total.subtract(original).add(afterFee).collateralRatioIsBelowCritical(price),
+            ) ||
+              total.collateralRatioIsBelowCritical(price) ||
+              !total.subtract(original).add(afterFee).collateralRatioIsBelowCritical(price),
             `Total collateral ratio would fall below ${ccrPercent}`
           ],
           [lusdBalance.gte(change.params.repayLUSD ?? 0), `You don't have enough ${COIN}`],

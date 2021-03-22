@@ -21,7 +21,8 @@ import {
   TroveCreationDetails,
   TroveCreationParams,
   TroveListingParams,
-  TroveWithPendingRedistribution
+  TroveWithPendingRedistribution,
+  UserTrove
 } from "@liquity/lib-base";
 
 import {
@@ -164,7 +165,7 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
   }
 
   /** {@inheritDoc @liquity/lib-base#ReadableLiquity.getTrove} */
-  getTrove(address?: string, overrides?: EthersCallOverrides): Promise<Trove> {
+  getTrove(address?: string, overrides?: EthersCallOverrides): Promise<UserTrove> {
     return this._readable.getTrove(address, overrides);
   }
 
@@ -176,6 +177,16 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
   /** {@inheritDoc @liquity/lib-base#ReadableLiquity.getPrice} */
   getPrice(overrides?: EthersCallOverrides): Promise<Decimal> {
     return this._readable.getPrice(overrides);
+  }
+
+  /** @internal */
+  _getActivePool(overrides?: EthersCallOverrides): Promise<Trove> {
+    return this._readable._getActivePool(overrides);
+  }
+
+  /** @internal */
+  _getDefaultPool(overrides?: EthersCallOverrides): Promise<Trove> {
+    return this._readable._getDefaultPool(overrides);
   }
 
   /** {@inheritDoc @liquity/lib-base#ReadableLiquity.getTotal} */
@@ -212,19 +223,18 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
   getTroves(
     params: TroveListingParams & { beforeRedistribution: true },
     overrides?: EthersCallOverrides
-  ): Promise<[address: string, trove: TroveWithPendingRedistribution][]>;
+  ): Promise<TroveWithPendingRedistribution[]>;
 
   /** {@inheritDoc @liquity/lib-base#ReadableLiquity.(getTroves:2)} */
-  getTroves(
-    params: TroveListingParams,
-    overrides?: EthersCallOverrides
-  ): Promise<[address: string, trove: Trove][]>;
+  getTroves(params: TroveListingParams, overrides?: EthersCallOverrides): Promise<UserTrove[]>;
 
-  getTroves(
-    params: TroveListingParams,
-    overrides?: EthersCallOverrides
-  ): Promise<[address: string, trove: Trove][]> {
+  getTroves(params: TroveListingParams, overrides?: EthersCallOverrides): Promise<UserTrove[]> {
     return this._readable.getTroves(params, overrides);
+  }
+
+  /** @internal */
+  _getFeesInNormalMode(overrides?: EthersCallOverrides): Promise<Fees> {
+    return this._readable._getFeesInNormalMode(overrides);
   }
 
   /** {@inheritDoc @liquity/lib-base#ReadableLiquity.getFees} */
@@ -255,9 +265,10 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
    */
   openTrove(
     params: TroveCreationParams<Decimalish>,
+    maxBorrowingRate?: Decimalish,
     overrides?: EthersTransactionOverrides
   ): Promise<TroveCreationDetails> {
-    return this.send.openTrove(params, overrides).then(waitForSuccess);
+    return this.send.openTrove(params, maxBorrowingRate, overrides).then(waitForSuccess);
   }
 
   /**
@@ -278,9 +289,10 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
    */
   adjustTrove(
     params: TroveAdjustmentParams<Decimalish>,
+    maxBorrowingRate?: Decimalish,
     overrides?: EthersTransactionOverrides
   ): Promise<TroveAdjustmentDetails> {
-    return this.send.adjustTrove(params, overrides).then(waitForSuccess);
+    return this.send.adjustTrove(params, maxBorrowingRate, overrides).then(waitForSuccess);
   }
 
   /**
@@ -317,9 +329,10 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
    */
   borrowLUSD(
     amount: Decimalish,
+    maxBorrowingRate?: Decimalish,
     overrides?: EthersTransactionOverrides
   ): Promise<TroveAdjustmentDetails> {
-    return this.send.borrowLUSD(amount, overrides).then(waitForSuccess);
+    return this.send.borrowLUSD(amount, maxBorrowingRate, overrides).then(waitForSuccess);
   }
 
   /**
@@ -453,9 +466,10 @@ export class EthersLiquity implements ReadableEthersLiquity, TransactableLiquity
    */
   redeemLUSD(
     amount: Decimalish,
+    maxRedemptionRate?: Decimalish,
     overrides?: EthersTransactionOverrides
   ): Promise<RedemptionDetails> {
-    return this.send.redeemLUSD(amount, overrides).then(waitForSuccess);
+    return this.send.redeemLUSD(amount, maxRedemptionRate, overrides).then(waitForSuccess);
   }
 
   /**
