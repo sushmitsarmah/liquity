@@ -8,7 +8,7 @@ services:
       - 80:80
     environment:
       # Ethereum address that shall receive LQTY rewards
-      - FRONTEND_TAG=0x0000000000000000000000000000000000000000
+      - FRONTEND_TAG=0xd6e3867401b9E091cFEE4828DCfa13C9Ffb94Ba7
       # Optional Infura API key to enable snappier blockchain events using WebSockets
       - INFURA_API_KEY=
     restart: always
